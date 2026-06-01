@@ -4,16 +4,17 @@
 
 python
 
+Для запуска проекта python -m src.db
 
 PIOA-НомерГруппы/
 │
 ├── src/
 │ └── db/
 │ ├── backend/
-│ │ ├── init.py
+│ │ ├── __init__.py
 │ │ └── memory.py 
-│ ├── init.py 
-│ ├── main.py 
+│ ├── __init__.py 
+│ ├── __main__.py
 │ └── tui.py 
 │
 └── README.md 

@@ -7,7 +7,6 @@ from .backend.memory import (
 
 
 def _print_menu() -> None:
-    
     print("\n" + "=" * 60)
     print("          СИСТЕМА УПРАВЛЕНИЯ СТУДЕНТАМИ")
     print("=" * 60)
@@ -21,7 +20,6 @@ def _print_menu() -> None:
 
 
 def _read_int(prompt: str) -> int:
-    
     while True:
         raw = input(prompt).strip()
         try:
@@ -31,7 +29,6 @@ def _read_int(prompt: str) -> int:
 
 
 def _read_optional_int(prompt: str) -> int | None:
-    
     while True:
         raw = input(prompt).strip()
         if raw == "":
@@ -60,6 +57,15 @@ def _read_optional_float(prompt: str) -> float | None:
             return float(raw)
         except ValueError:
             print("Ошибка: введите число или оставьте поле пустым.")
+
+
+def _read_string(prompt: str, required: bool = True) -> str | None:
+    """Читает строку из ввода."""
+    value = input(prompt).strip()
+    if required and not value:
+        print("Ошибка: поле не может быть пустым.")
+        return None
+    return value if value else None
 
 
 def _print_records(records: list[tuple[int, str, str, int, float, str]]) -> None:
@@ -93,15 +99,23 @@ def _add_student() -> None:
     print("\nДОБАВЛЕНИЕ НОВОГО СТУДЕНТА")
     print("-" * 40)
 
-    first_name = input("Имя: ").strip()
-    last_name = input("Фамилия: ").strip()
+    first_name = _read_string("Имя: ")
+    if not first_name:
+        return
+    
+    last_name = _read_string("Фамилия: ")
+    if not last_name:
+        return
+    
     age = _read_int("Возраст: ")
     grade = _read_float("Средний балл (0-5): ")
-    email = input("Email: ").strip()
+    email = _read_string("Email: ")
+    if not email:
+        return
 
     try:
         record = create_record(first_name, last_name, age, grade, email)
-        print(f"\nСтудент успешно добавлен!")
+        print("\nСтудент успешно добавлен!")
         print(f"   ID: {record[0]}")
         print(f"   {record[1]} {record[2]}, {record[3]} лет")
         print(f"   Средний балл: {record[4]:.2f} ({_grade_to_text(record[4])})")
@@ -149,7 +163,7 @@ def _update_student() -> None:
         print(f"\nСтудент с ID {student_id} не найден.")
         return
 
-    print(f"\nТекущая информация:")
+    print("\nТекущая информация:")
     print(f"   {existing[0][1]} {existing[0][2]}, {existing[0][3]} лет")
     print(f"   Средний балл: {existing[0][4]:.2f}")
     print(f"   Email: {existing[0][5]}")
@@ -160,17 +174,15 @@ def _update_student() -> None:
     first_name = input("Новое имя: ").strip() or None
     last_name = input("Новая фамилия: ").strip() or None
     
-    age_input = input("Новый возраст: ").strip()
-    age = int(age_input) if age_input else None
+    age = _read_optional_int("Новый возраст: ")
     
-    grade_input = input("Новый средний балл: ").strip()
-    grade = float(grade_input) if grade_input else None
+    grade = _read_optional_float("Новый средний балл: ")
     
     email = input("Новый email: ").strip() or None
 
     try:
         updated = update_record(student_id, first_name, last_name, age, grade, email)
-        print(f"\nИнформация о студенте успешно обновлена!")
+        print("\nИнформация о студенте успешно обновлена!")
         print(f"   {updated[1]} {updated[2]}, {updated[3]} лет")
         print(f"   Средний балл: {updated[4]:.2f} ({_grade_to_text(updated[4])})")
         print(f"   Email: {updated[5]}")
@@ -188,7 +200,7 @@ def _delete_student() -> None:
         print(f"\nСтудент с ID {student_id} не найден.")
         return
 
-    print(f"\nСтудент для удаления:")
+    print("\nСтудент для удаления:")
     print(f"   {existing[0][1]} {existing[0][2]}, {existing[0][3]} лет")
     print(f"   Средний балл: {existing[0][4]:.2f}")
     print(f"   Email: {existing[0][5]}")
@@ -206,7 +218,6 @@ def _delete_student() -> None:
 
 
 def run() -> None:
-
     while True:
         _print_menu()
         action = input("\nВыберите действие (0-5): ").strip()
