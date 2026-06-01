@@ -38,14 +38,14 @@ class ConsoleInterface:
                 print("Ошибка: введите целое число.")
 
     def _read_optional_int(self, prompt: str) -> int | None:
-        raw = input(prompt).strip()
-        if raw == "":
-            return None
-        try:
-            return int(raw)
-        except ValueError:
-            print("Ошибка: введите целое число или оставьте поле пустым.")
-            return None
+        while True:
+            raw = input(prompt).strip()
+            if raw == "":
+                return None
+            try:
+                return int(raw)
+            except ValueError:
+                print("Ошибка: введите целое число или оставьте поле пустым.")
 
     def _read_float(self, prompt: str) -> float:
         while True:
@@ -59,21 +59,22 @@ class ConsoleInterface:
                 print("Ошибка: введите число (например: 4.5).")
 
     def _read_optional_float(self, prompt: str) -> float | None:
-        raw = input(prompt).strip()
-        if raw == "":
-            return None
-        try:
-            return float(raw)
-        except ValueError:
-            print("Ошибка: введите число или оставьте поле пустым.")
-            return None
+        while True:
+            raw = input(prompt).strip()
+            if raw == "":
+                return None
+            try:
+                return float(raw)
+            except ValueError:
+                print("Ошибка: введите число или оставьте поле пустым.")
 
     def _read_string(self, prompt: str, required: bool = True) -> str | None:
-        value = input(prompt).strip()
-        if required and not value:
-            print("Ошибка: поле не может быть пустым.")
-            return None
-        return value if value else None
+        while True:
+            value = input(prompt).strip()
+            if required and not value:
+                print("Ошибка: поле не может быть пустым.")
+                continue
+            return value if value else None
 
     def _grade_to_text(self, grade: float) -> str:
         if grade >= 4.5:
@@ -120,7 +121,7 @@ class ConsoleInterface:
 
         try:
             record = self.db.create_record(first_name, last_name, age, grade, email)
-            print(f"\nСтудент успешно добавлен!")
+            print("\nСтудент успешно добавлен!")
             print(f"   ID: {record[0]}")
             print(f"   {record[1]} {record[2]}, {record[3]} лет")
             print(f"   Средний балл: {record[4]:.2f} ({self._grade_to_text(record[4])})")
@@ -159,65 +160,89 @@ class ConsoleInterface:
         print("\nОБНОВЛЕНИЕ ИНФОРМАЦИИ О СТУДЕНТЕ")
         print("-" * 40)
 
-        student_id = self._read_int("Введите ID студента для обновления: ")
-        existing = self.db.select_record(student_id=student_id)
-        if not existing:
-            print(f"\nСтудент с ID {student_id} не найден.")
-            return
-
-        print(f"\nТекущая информация:")
-        print(f"   {existing[0][1]} {existing[0][2]}, {existing[0][3]} лет")
-        print(f"   Средний балл: {existing[0][4]:.2f}")
-        print(f"   Email: {existing[0][5]}")
-
-        print("\n(оставьте поле пустым, чтобы не менять)")
-        print("-" * 40)
-
-        first_name = self._read_string("Новое имя: ", required=False)
-        last_name = self._read_string("Новая фамилия: ", required=False)
-
-        age_input = input("Новый возраст: ").strip()
-        age = int(age_input) if age_input else None
-
-        grade_input = input("Новый средний балл: ").strip()
-        grade = float(grade_input) if grade_input else None
-
-        email = self._read_string("Новый email: ", required=False)
-
         try:
-            updated = self.db.update_record(student_id, first_name, last_name, age, grade, email)
-            print(f"\nИнформация о студенте успешно обновлена!")
+            student_id = self._read_int("Введите ID студента для обновления: ")
+            existing = self.db.select_record(student_id=student_id)
+            if not existing:
+                print(f"\nСтудент с ID {student_id} не найден.")
+                return
+
+            print(f"\nТекущая информация:")
+            print(f"   ID: {existing[0][0]}")
+            print(f"   Имя: {existing[0][1]}")
+            print(f"   Фамилия: {existing[0][2]}")
+            print(f"   Возраст: {existing[0][3]} лет")
+            print(f"   Средний балл: {existing[0][4]:.2f}")
+            print(f"   Email: {existing[0][5]}")
+
+            print("\n(оставьте поле пустым, чтобы не менять)")
+            print("-" * 40)
+
+            first_name = self._read_string("Новое имя: ", required=False)
+            last_name = self._read_string("Новая фамилия: ", required=False)
+            age = self._read_optional_int("Новый возраст: ")
+            grade = self._read_optional_float("Новый средний балл: ")
+            email = self._read_string("Новый email: ", required=False)
+
+            if all(param is None for param in [first_name, last_name, age, grade, email]):
+                print("\nНи одно поле не было изменено. Обновление отменено.")
+                return
+
+            updated = self.db.update_record(
+                student_id, 
+                first_name, 
+                last_name, 
+                age, 
+                grade, 
+                email
+            )
+            print("\nИнформация о студенте успешно обновлена!")
             print(f"   {updated[1]} {updated[2]}, {updated[3]} лет")
             print(f"   Средний балл: {updated[4]:.2f} ({self._grade_to_text(updated[4])})")
             print(f"   Email: {updated[5]}")
-        except (InvalidNameError, InvalidAgeError, InvalidGradeError, InvalidEmailError, DuplicateEmailError, RecordNotFoundError) as exc:
-            print(f"\nОшибка: {exc}")
+            
+        except (InvalidNameError, InvalidAgeError, InvalidGradeError, 
+                InvalidEmailError, DuplicateEmailError) as exc:
+            print(f"\nОшибка валидации: {exc}")
+        except RecordNotFoundError as exc:
+            print(f"\n{exc}")
+        except ValueError as exc:
+            print(f"\nОшибка ввода данных: {exc}")
+        except Exception as exc:
+            print(f"\nНепредвиденная ошибка при обновлении: {exc}")
+            import traceback
+            traceback.print_exc()
 
     def _delete_student(self) -> None:
         print("\nУДАЛЕНИЕ СТУДЕНТА")
         print("-" * 40)
 
-        student_id = self._read_int("Введите ID студента для удаления: ")
-        existing = self.db.select_record(student_id=student_id)
-        if not existing:
-            print(f"\nСтудент с ID {student_id} не найден.")
-            return
+        try:
+            student_id = self._read_int("Введите ID студента для удаления: ")
+            existing = self.db.select_record(student_id=student_id)
+            if not existing:
+                print(f"\nСтудент с ID {student_id} не найден.")
+                return
 
-        print(f"\nСтудент для удаления:")
-        print(f"   {existing[0][1]} {existing[0][2]}, {existing[0][3]} лет")
-        print(f"   Средний балл: {existing[0][4]:.2f}")
-        print(f"   Email: {existing[0][5]}")
+            print(f"\nСтудент для удаления:")
+            print(f"   {existing[0][1]} {existing[0][2]}, {existing[0][3]} лет")
+            print(f"   Средний балл: {existing[0][4]:.2f}")
+            print(f"   Email: {existing[0][5]}")
 
-        confirm = input("\nВы уверены, что хотите удалить этого студента? (да/нет): ").strip().lower()
+            confirm = input("\nВы уверены, что хотите удалить этого студента? (да/нет): ").strip().lower()
 
-        if confirm in ("да", "yes", "y", "д"):
-            try:
+            if confirm in ("да", "yes", "y", "д"):
                 deleted = self.db.delete_record(student_id)
                 print(f"\nСтудент успешно удалён: {deleted[1]} {deleted[2]}")
-            except RecordNotFoundError as exc:
-                print(f"\nОшибка: {exc}")
-        else:
-            print("\nУдаление отменено.")
+            else:
+                print("\nУдаление отменено.")
+                
+        except RecordNotFoundError as exc:
+            print(f"\n{exc}")
+        except Exception as exc:
+            print(f"\nНепредвиденная ошибка при удалении: {exc}")
+            import traceback
+            traceback.print_exc()
 
     def _sort_students(self) -> None:
         print("\nСОРТИРОВКА СТУДЕНТОВ")
@@ -287,32 +312,44 @@ class ConsoleInterface:
             sorted_records = self.db.sort_records(field, reverse, filter_params)
             print(f"\nОтсортированные студенты (по полю '{field}', {'по убыванию' if reverse else 'по возрастанию'}):")
             self._print_records(sorted_records)
-        except Exception as exc:
+        except ValueError as exc:
             print(f"\nОшибка при сортировке: {exc}")
+        except Exception as exc:
+            print(f"\nНепредвиденная ошибка при сортировке: {exc}")
+            import traceback
+            traceback.print_exc()
 
     def run(self) -> None:
-
         while True:
-            self._print_menu()
-            action = input("\nВыберите действие (0-6): ").strip()
+            try:
+                self._print_menu()
+                action = input("\nВыберите действие (0-6): ").strip()
 
-            if action == "1":
-                self._add_student()
-            elif action == "2":
-                self._show_all_students()
-            elif action == "3":
-                self._find_students_by_filter()
-            elif action == "4":
-                self._update_student()
-            elif action == "5":
-                self._delete_student()
-            elif action == "6":
-                self._sort_students()
-            elif action == "0":
-                print("\nДо свидания! Спасибо за использование системы.")
+                if action == "1":
+                    self._add_student()
+                elif action == "2":
+                    self._show_all_students()
+                elif action == "3":
+                    self._find_students_by_filter()
+                elif action == "4":
+                    self._update_student()
+                elif action == "5":
+                    self._delete_student()
+                elif action == "6":
+                    self._sort_students()
+                elif action == "0":
+                    print("\nДо свидания! Спасибо за использование системы.")
+                    break
+                else:
+                    print("\nНеизвестная команда. Пожалуйста, выберите действие от 0 до 6.")
+            except KeyboardInterrupt:
+                print("\n\nПрограмма прервана пользователем. До свидания!")
                 break
-            else:
-                print("\nНеизвестная команда. Пожалуйста, выберите действие от 0 до 6.")
+            except Exception as exc:
+                print(f"\nНепредвиденная ошибка: {exc}")
+                import traceback
+                traceback.print_exc()
+                print("\nПопробуйте продолжить работу...")
 
             input("\nНажмите Enter для продолжения...")
 

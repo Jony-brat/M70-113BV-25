@@ -270,26 +270,84 @@ class TestStudentTable(unittest.TestCase):
         records = self.db.get_all_records()
         self.assertEqual(len(records), 5)
 
-    def test_count_records(self):
-        """Тест подсчёта записей."""
-        self.assertEqual(self.db.count_records(), 0)
-        
+        def test_count_records(self):
+            """Тест подсчёта записей."""
+            self.assertEqual(self.db.count_records(), 0)
+            
+            self.db.create_record("Иван", "Петров", 20, 4.7, "ivan@example.com")
+            self.assertEqual(self.db.count_records(), 1)
+            
+            self.db.create_record("Мария", "Иванова", 22, 4.2, "maria@example.com")
+            self.assertEqual(self.db.count_records(), 2)
+
+        def test_clear(self):
+            """Тест очистки таблицы."""
+            self.db.create_record("Иван", "Петров", 20, 4.7, "ivan@example.com")
+            self.db.create_record("Мария", "Иванова", 22, 4.2, "maria@example.com")
+            
+            self.assertEqual(self.db.count_records(), 2)
+            
+            self.db.clear()
+            self.assertEqual(self.db.count_records(), 0)
+    def test_sort_records_invalid_field(self):
+        """Тест сортировки с недопустимым полем."""
         self.db.create_record("Иван", "Петров", 20, 4.7, "ivan@example.com")
-        self.assertEqual(self.db.count_records(), 1)
         
-        self.db.create_record("Мария", "Иванова", 22, 4.2, "maria@example.com")
-        self.assertEqual(self.db.count_records(), 2)
+        with self.assertRaises(ValueError) as context:
+            self.db.sort_records('invalid_field')
+        
+        self.assertIn("Недопустимое поле для сортировки", str(context.exception))
 
-    def test_clear(self):
-        """Тест очистки таблицы."""
+    def test_sort_records_empty_table(self):
+        """Тест сортировки пустой таблицы."""
+        sorted_records = self.db.sort_records('id')
+        self.assertEqual(sorted_records, [])
+
+    def test_sort_records_by_grade_with_filter_none(self):
+        """Тест сортировки с filter_params=None."""
         self.db.create_record("Иван", "Петров", 20, 4.7, "ivan@example.com")
         self.db.create_record("Мария", "Иванова", 22, 4.2, "maria@example.com")
         
-        self.assertEqual(self.db.count_records(), 2)
+        sorted_records = self.db.sort_records('grade', reverse=True, filter_params=None)
         
-        self.db.clear()
-        self.assertEqual(self.db.count_records(), 0)
+        grades = [r[4] for r in sorted_records]
+        self.assertEqual(grades, [4.7, 4.2])
 
+    def test_sort_records_case_insensitive(self):
+        """Тест регистронезависимой сортировки строк."""
+        self.db.create_record("ИВАН", "ПЕТРОВ", 20, 4.7, "IVAN@EXAMPLE.COM")
+        self.db.create_record("Анна", "Иванова", 22, 4.2, "anna@example.com")
+        self.db.create_record("петр", "Сидоров", 19, 3.5, "petr@example.com")
+        
+        sorted_records = self.db.sort_records('first_name', reverse=False)
+        
+        # Ожидаемый порядок: Анна, ИВАН (приводится к Иван), петр (приводится к Петр)
+        names = [r[1] for r in sorted_records]
+        self.assertEqual(names, ["Анна", "Иван", "Петр"])
 
+    def test_sort_records_preserves_original_order(self):
+        # Создаём записи в определённом порядке
+        record1 = self.db.create_record("Иван", "Петров", 20, 4.7, "ivan@example.com")
+        record2 = self.db.create_record("Мария", "Иванова", 22, 4.2, "maria@example.com")
+        record3 = self.db.create_record("Анна", "Сидорова", 19, 4.9, "anna@example.com")
+        
+        # Запоминаем исходный порядок ID в таблице
+        original_ids = [r[0] for r in self.db.get_all_records()]
+        self.assertEqual(original_ids, [record1[0], record2[0], record3[0]])
+        
+        # Выполняем сортировку (возвращает новый список)
+        sorted_records = self.db.sort_records('first_name', reverse=False)
+        
+        # Проверяем, что отсортированный список имеет другой порядок
+        sorted_ids = [r[0] for r in sorted_records]
+        self.assertNotEqual(original_ids, sorted_ids)
+        
+        # Проверяем, что исходная таблица НЕ изменилась (порядок остался прежним)
+        current_ids = [r[0] for r in self.db.get_all_records()]
+        self.assertEqual(original_ids, current_ids,)
+        # Проверяем правильность сортировки
+        sorted_names = [r[1] for r in sorted_records]
+        expected_names = ["Анна", "Иван", "Мария"]  # По алфавиту
+        self.assertEqual(sorted_names, expected_names)
 if __name__ == "__main__":
     unittest.main()

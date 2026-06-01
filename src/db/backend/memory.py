@@ -30,19 +30,7 @@ class StudentTable:
         return current_id
 
     def _validate_name(self, name: str, field_name: str) -> str:
-        """
-        Валидирует имя или фамилию.
-        
-        Args:
-            name: Имя или фамилия для проверки
-            field_name: Название поля для сообщения об ошибке
-            
-        Returns:
-            Очищенная и капитализированная строка
-            
-        Raises:
-            InvalidNameError: Если имя некорректно
-        """
+        """Валидирует имя или фамилию."""
         if not name or not name.strip():
             raise InvalidNameError(f"{field_name} не может быть пустым.")
         if len(name.strip()) < 2:
@@ -50,54 +38,19 @@ class StudentTable:
         return name.strip().capitalize()
 
     def _validate_age(self, age: int) -> int:
-        """
-        Валидирует возраст.
-        
-        Args:
-            age: Возраст для проверки
-            
-        Returns:
-            Проверенный возраст
-            
-        Raises:
-            InvalidAgeError: Если возраст некорректен
-        """
+        """Валидирует возраст."""
         if age < 0 or age > 120:
             raise InvalidAgeError("Возраст должен быть от 0 до 120 лет.")
         return age
 
     def _validate_grade(self, grade: float) -> float:
-        """
-        Валидирует средний балл.
-        
-        Args:
-            grade: Балл для проверки
-            
-        Returns:
-            Проверенный балл
-            
-        Raises:
-            InvalidGradeError: Если балл некорректен
-        """
+        """Валидирует средний балл."""
         if grade < 0 or grade > 5:
             raise InvalidGradeError("Средний балл должен быть от 0 до 5.")
         return grade
 
     def _validate_email(self, email: str, exclude_id: int | None = None) -> str:
-        """
-        Валидирует email и проверяет уникальность.
-        
-        Args:
-            email: Email для проверки
-            exclude_id: ID записи, которую нужно исключить из проверки уникальности
-            
-        Returns:
-            Очищенный и приведённый к нижнему регистру email
-            
-        Raises:
-            InvalidEmailError: Если email некорректен
-            DuplicateEmailError: Если email уже существует
-        """
+        """Валидирует email и проверяет уникальность."""
         if not email or not email.strip():
             raise InvalidEmailError("Email не может быть пустым.")
 
@@ -122,26 +75,7 @@ class StudentTable:
         grade: float,
         email: str,
     ) -> StudentRecord:
-        """
-        Добавляет нового студента в таблицу.
-
-        Args:
-            first_name: Имя студента
-            last_name: Фамилия студента
-            age: Возраст студента
-            grade: Средний балл
-            email: Email студента
-
-        Returns:
-            Созданная запись
-
-        Raises:
-            InvalidNameError: При некорректном имени или фамилии
-            InvalidAgeError: При некорректном возрасте
-            InvalidGradeError: При некорректном балле
-            InvalidEmailError: При некорректном email
-            DuplicateEmailError: При дублировании email
-        """
+        """Добавляет нового студента в таблицу."""
         first_name_valid = self._validate_name(first_name, "Имя")
         last_name_valid = self._validate_name(last_name, "Фамилия")
         age_valid = self._validate_age(age)
@@ -168,20 +102,7 @@ class StudentTable:
         grade: float | None = None,
         email: str | None = None,
     ) -> list[StudentRecord]:
-        """
-        Выполняет выборку записей с фильтрацией.
-
-        Args:
-            student_id: Фильтр по ID
-            first_name: Фильтр по имени
-            last_name: Фильтр по фамилии
-            age: Фильтр по возрасту
-            grade: Фильтр по среднему баллу
-            email: Фильтр по email
-
-        Returns:
-            Список записей, удовлетворяющих фильтрам
-        """
+        """Выполняет выборку записей с фильтрацией."""
         if all(param is None for param in [student_id, first_name, last_name, age, grade, email]):
             return self._students.copy()
 
@@ -213,23 +134,7 @@ class StudentTable:
         grade: float | None = None,
         email: str | None = None,
     ) -> StudentRecord:
-        """
-        Обновляет существующую запись по ID.
-
-        Args:
-            student_id: ID студента для обновления
-            first_name: Новое имя (опционально)
-            last_name: Новая фамилия (опционально)
-            age: Новый возраст (опционально)
-            grade: Новый средний балл (опционально)
-            email: Новый email (опционально)
-
-        Returns:
-            Обновлённая запись
-
-        Raises:
-            RecordNotFoundError: Если запись с указанным ID не найдена
-        """
+        """Обновляет существующую запись по ID."""
         for i, record in enumerate(self._students):
             if record[0] == student_id:
                 updated_record = list(record)
@@ -252,18 +157,7 @@ class StudentTable:
         raise RecordNotFoundError(f"Студент с id={student_id} не найден.")
 
     def delete_record(self, student_id: int) -> StudentRecord:
-        """
-        Удаляет запись по ID.
-
-        Args:
-            student_id: ID студента для удаления
-
-        Returns:
-            Удалённая запись
-
-        Raises:
-            RecordNotFoundError: Если запись с указанным ID не найдена
-        """
+        """Удаляет запись по ID."""
         for i, record in enumerate(self._students):
             if record[0] == student_id:
                 return self._students.pop(i)
@@ -273,6 +167,63 @@ class StudentTable:
     def get_all_records(self) -> list[StudentRecord]:
         """Возвращает копию всех записей."""
         return self._students.copy()
+
+    def sort_records(
+        self,
+        field: str,
+        reverse: bool = False,
+        filter_params: dict | None = None,
+    ) -> list[StudentRecord]:
+        """
+        Сортирует записи по указанному полю.
+        
+        Args:
+            field: Поле для сортировки 
+                   ('id', 'first_name', 'last_name', 'age', 'grade', 'email')
+            reverse: True для сортировки по убыванию, False для по возрастанию
+            filter_params: Словарь с параметрами фильтрации (опционально)
+            
+        Returns:
+            Отсортированный список записей
+            
+        Raises:
+            ValueError: Если указано недопустимое поле для сортировки
+        """
+        # Получаем записи с фильтрацией, если указаны фильтры
+        if filter_params:
+            records = self.select_record(**filter_params)
+        else:
+            records = self._students.copy()
+        
+        # Маппинг полей на индексы в кортеже
+        field_to_index = {
+            'id': 0,
+            'first_name': 1,
+            'last_name': 2,
+            'age': 3,
+            'grade': 4,
+            'email': 5,
+        }
+        
+        # Проверка корректности поля
+        if field not in field_to_index:
+            raise ValueError(
+                f"Недопустимое поле для сортировки: '{field}'. "
+                f"Доступные поля: {', '.join(field_to_index.keys())}"
+            )
+        
+        index = field_to_index[field]
+        
+        # Функция для получения ключа сортировки
+        def get_sort_key(record: StudentRecord):
+            value = record[index]
+            # Для строк используем нижний регистр (регистронезависимая сортировка)
+            if isinstance(value, str):
+                return value.lower()
+            return value
+        
+        # Выполняем сортировку
+        return sorted(records, key=get_sort_key, reverse=reverse)
 
     def count_records(self) -> int:
         """Возвращает количество записей в таблице."""
