@@ -1,70 +1,67 @@
 from abc import ABC, abstractmethod
 from typing import Any
+
+from .errors import TableAlreadyExistsError, TableNotFoundError
 from .table import Table
 
 
-class Database(ABC):    
-    def create_table(self, table_name: str, columns: tuple[str, ...], indexed_fields: list[str] | None = None) -> None:
+class Database(ABC):
+    """Общий интерфейс базы данных."""
+
+    def create_table(self, table_name: str, columns: tuple[str, ...]) -> None:
         if self._table_exists(table_name):
-            raise ValueError(f"Таблица '{table_name}' уже существует.") 
-        self._save_table(table_name, Table(columns, indexed_fields=indexed_fields))
-    
-    def insert_record(self, table_name: str, record: dict[str, Any]) -> int:
+            raise TableAlreadyExistsError(
+                f"Таблица '{table_name}' уже существует."
+            )
+
+        self._save_table(table_name, Table(columns))
+
+    def insert_record(self, table_name: str, record: dict[str, Any]) -> None:
         table = self._load_table(table_name)
-        record_id = table.insert_record(record)
+        table.insert_record(record)
         self._save_table(table_name, table)
-        return record_id
-    
+
     def select_records(self, table_name: str, **filters: Any) -> list[dict[str, Any]]:
         table = self._load_table(table_name)
         return table.select_records(**filters)
-    
-    def update_record(self, table_name: str, record_id: int, **updates: Any) -> dict[str, Any]:
+
+    def update_record(self, table_name: str, record_id: int, id_field: str, **updates: Any) -> dict[str, Any] | None:
         table = self._load_table(table_name)
-        updated = table.update_record(record_id, **updates)
-        self._save_table(table_name, table)
-        return updated
-    
-    def delete_record(self, table_name: str, record_id: int) -> dict[str, Any]:
+        result = table.update_record(record_id, id_field, **updates)
+        if result is not None:
+            self._save_table(table_name, table)
+        return result
+
+    def delete_record(self, table_name: str, record_id: int, id_field: str) -> dict[str, Any] | None:
         table = self._load_table(table_name)
-        deleted = table.delete_record(record_id)
-        self._save_table(table_name, table)
-        return deleted
-    
+        result = table.delete_record(record_id, id_field)
+        if result is not None:
+            self._save_table(table_name, table)
+        return result
+
     def get_all_records(self, table_name: str) -> list[dict[str, Any]]:
         table = self._load_table(table_name)
         return table.get_all_records()
-    
+
     def count_records(self, table_name: str) -> int:
         table = self._load_table(table_name)
         return table.count_records()
-    
-    def sort_records(self, table_name: str, field: str, reverse: bool = False) -> list[dict[str, Any]]:
-        table = self._load_table(table_name)
-        return table.sort_records(field, reverse)
-    
-    def add_index(self, table_name: str, field_name: str) -> None:
-        table = self._load_table(table_name)
-        table.add_index(field_name)
-        self._save_table(table_name, table)
-    
-    def remove_index(self, table_name: str, field_name: str) -> None:
-        table = self._load_table(table_name)
-        table.remove_index(field_name)
-        self._save_table(table_name, table)
-    
-    def get_indexed_fields(self, table_name: str) -> list[str]:
-        table = self._load_table(table_name)
-        return table.get_indexed_fields()
-    
+
+    def table_exists(self, table_name: str) -> bool:
+        return self._table_exists(table_name)
+
     @abstractmethod
     def _table_exists(self, table_name: str) -> bool:
-        pass
-    
+        """Проверяет наличие таблицы."""
+
     @abstractmethod
     def _load_table(self, table_name: str) -> Table:
-        pass
-    
+        """Загружает таблицу."""
+
     @abstractmethod
     def _save_table(self, table_name: str, table: Table) -> None:
-        pass
+        """Сохраняет таблицу."""
+
+    @abstractmethod
+    def clear_all(self) -> None:
+        """Очищает все данные."""

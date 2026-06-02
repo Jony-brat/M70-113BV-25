@@ -1,61 +1,55 @@
-from typing import Any
-
-from .backend import MemoryDatabase, JSONDatabase, CSVDatabase
+from .backend.database import Database
 from .backend.errors import (
-    TableAlreadyExistsError,
-    TableNotFoundError,
-    RecordNotFoundError,
-    InvalidNameError,
     InvalidAgeError,
     InvalidGradeError,
+    InvalidNameError,
     InvalidEmailError,
     DuplicateEmailError,
+    RecordNotFoundError,
+    TableAlreadyExistsError,
+    TableNotFoundError,
     MissingColumnError,
     UnknownColumnError,
+    InvalidStorageDataError,
 )
+from .backend.file import FileDatabase
+from .backend.memory import MemoryDatabase
 
 
 class ConsoleInterface:
-  
-    COLUMNS = ('first_name', 'last_name', 'age', 'grade', 'email')
-    
     def __init__(self) -> None:
         self.db = self._select_database()
-        self._ensure_table_exists()
-    
-    def _select_database(self):
+        self._init_students_table()
+
+    def _select_database(self) -> Database:
         print("\n" + "=" * 60)
-        print("          ВЫБОР ТИПА БАЗЫ ДАННЫХ")
+        print("ВЫБОР ТИПА БАЗЫ ДАННЫХ")
         print("=" * 60)
         print("1. In-memory (данные не сохраняются)")
-        print("2. Файловая (JSON) - данные сохраняются в JSON файлы")
-        print("3. Файловая (CSV) - данные сохраняются в CSV файлы")
+        print("2. File (данные сохраняются в JSON файлы)")
         print("-" * 60)
-        
+
         while True:
-            choice = input("Выберите тип БД (1-3): ").strip()
+            choice = input("Ваш выбор (1-2): ").strip()
             if choice == "1":
                 print("\nВыбрана in-memory база данных.")
                 return MemoryDatabase()
             elif choice == "2":
-                print("\nВыбрана файловая база данных (JSON).")
-                return JSONDatabase()
-            elif choice == "3":
-                print("\nВыбрана файловая база данных (CSV).")
-                return CSVDatabase()
+                print("\nВыбрана файловая база данных. Данные будут сохранены в папке 'data'.")
+                return FileDatabase()
             else:
-                print("Неверный выбор. Пожалуйста, выберите 1, 2 или 3.")
-    
-    def _ensure_table_exists(self) -> None:
+                print("Ошибка: введите 1 или 2.")
+
+    def _init_students_table(self) -> None:
+        columns = ("student_id", "first_name", "last_name", "age", "grade", "email")
         try:
-            self.db.select_records("students")
-        except TableNotFoundError:
-            self.db.create_table("students", self.COLUMNS, indexed_fields=['email', 'last_name'])
-            print("Создана новая таблица 'students'.")
-    
+            self.db.create_table("students", columns)
+        except TableAlreadyExistsError:
+            pass
+
     def _print_menu(self) -> None:
         print("\n" + "=" * 60)
-        print("          СИСТЕМА УПРАВЛЕНИЯ СТУДЕНТАМИ")
+        print("СИСТЕМА УПРАВЛЕНИЯ СТУДЕНТАМИ")
         print("=" * 60)
         print("1. Добавить студента")
         print("2. Показать всех студентов")
@@ -63,10 +57,9 @@ class ConsoleInterface:
         print("4. Обновить информацию о студенте")
         print("5. Удалить студента")
         print("6. Сортировать студентов")
-        print("7. Управление индексами")
         print("0. Выход")
         print("-" * 60)
-    
+
     def _read_int(self, prompt: str) -> int:
         while True:
             raw = input(prompt).strip()
@@ -77,17 +70,17 @@ class ConsoleInterface:
                 return int(raw)
             except ValueError:
                 print("Ошибка: введите целое число.")
-    
+
     def _read_optional_int(self, prompt: str) -> int | None:
-        raw = input(prompt).strip()
-        if raw == "":
-            return None
-        try:
-            return int(raw)
-        except ValueError:
-            print("Ошибка: введите целое число.")
-            return None
-    
+        while True:
+            raw = input(prompt).strip()
+            if raw == "":
+                return None
+            try:
+                return int(raw)
+            except ValueError:
+                print("Ошибка: введите целое число или оставьте поле пустым.")
+
     def _read_float(self, prompt: str) -> float:
         while True:
             raw = input(prompt).strip()
@@ -97,45 +90,26 @@ class ConsoleInterface:
             try:
                 return float(raw)
             except ValueError:
-                print("Ошибка: введите число (0-5).")
-    
-    def _read_optional_float(self, prompt: str) -> float | None:
-        raw = input(prompt).strip()
-        if raw == "":
-            return None
-        try:
-            return float(raw)
-        except ValueError:
-            print("Ошибка: введите число.")
-            return None
-    
-    def _read_string(self, prompt: str, required: bool = True) -> str | None:
-        value = input(prompt).strip()
-        if required and not value:
-            print("Ошибка: поле не может быть пустым.")
-            return None
-        return value if value else None
+                print("Ошибка: введите число (например: 4.5).")
 
-    def _validate_record(self, first_name: str, last_name: str, age: int, grade: float, email: str) -> dict:
-        if not first_name or len(first_name) < 2:
-            raise InvalidNameError("Имя должно содержать минимум 2 символа.")
-        if not last_name or len(last_name) < 2:
-            raise InvalidNameError("Фамилия должна содержать минимум 2 символа.")
-        if age < 0 or age > 120:
-            raise InvalidAgeError("Возраст должен быть от 0 до 120 лет.")
-        if grade < 0 or grade > 5:
-            raise InvalidGradeError("Средний балл должен быть от 0 до 5.")
-        if not email or "@" not in email or "." not in email:
-            raise InvalidEmailError("Введите корректный email.")
-        
-        return {
-            "first_name": first_name.strip().capitalize(),
-            "last_name": last_name.strip().capitalize(),
-            "age": age,
-            "grade": grade,
-            "email": email.strip().lower()
-        }
-    
+    def _read_optional_float(self, prompt: str) -> float | None:
+        while True:
+            raw = input(prompt).strip()
+            if raw == "":
+                return None
+            try:
+                return float(raw)
+            except ValueError:
+                print("Ошибка: введите число или оставьте поле пустым.")
+
+    def _read_string(self, prompt: str, required: bool = True) -> str | None:
+        while True:
+            value = input(prompt).strip()
+            if required and not value:
+                print("Ошибка: поле не может быть пустым.")
+                continue
+            return value if value else None
+
     def _grade_to_text(self, grade: float) -> str:
         if grade >= 4.5:
             return "Отлично"
@@ -143,264 +117,367 @@ class ConsoleInterface:
             return "Хорошо"
         elif grade >= 2.5:
             return "Удовлетворительно"
-        return "Неудовлетворительно"
-    
-    def _print_records(self, records: list[dict[str, Any]]) -> None:
+        else:
+            return "Неудовлетворительно"
+
+    def _print_records(self, records: list[dict]) -> None:
         if not records:
             print("\nСтуденты не найдены.")
             return
-        
-        print("\n" + "=" * 120)
-        print(f"{'ID':<5} {'Имя':<15} {'Фамилия':<15} {'Возраст':<8} {'Ср.балл':<10} {'Оценка':<15} {'Email':<35}")
-        print("=" * 120)
-        
+
+        print("\n" + "=" * 110)
+        print(f"{'ID':<5} {'Имя':<15} {'Фамилия':<15} {'Возраст':<8} {'Ср. балл':<10} {'Оценка':<15} {'Email':<30}")
+        print("=" * 110)
+
         for record in records:
-            email = record.get('email', '')[:32] + "..." if len(record.get('email', '')) > 35 else record.get('email', '')
-            print(f"{record.get('id', '?'):<5} {record.get('first_name', ''):<15} {record.get('last_name', ''):<15} "
-                  f"{record.get('age', '?'):<8} {record.get('grade', 0):<10.2f} {self._grade_to_text(record.get('grade', 0)):<15} {email:<35}")
-        print("=" * 120)
+            email_display = record['email'][:27] + "..." if len(record['email']) > 30 else record['email']
+            print(f"{record['student_id']:<5} {record['first_name']:<15} {record['last_name']:<15} {record['age']:<8} {record['grade']:<10.2f} {self._grade_to_text(record['grade']):<15} {email_display:<30}")
+        print("=" * 110)
         print(f"Всего студентов: {len(records)}")
-    
+
+    def _get_next_id(self) -> int:
+        records = self.db.get_all_records("students")
+        if not records:
+            return 1
+        return max(r['student_id'] for r in records) + 1
+
+    def _validate_name(self, name: str, field_name: str) -> str:
+        if not name or not name.strip():
+            raise InvalidNameError(f"{field_name} не может быть пустым.")
+        if len(name.strip()) < 2:
+            raise InvalidNameError(f"{field_name} должно содержать минимум 2 символа.")
+        return name.strip().capitalize()
+
+    def _validate_age(self, age: int) -> int:
+        if age < 0 or age > 120:
+            raise InvalidAgeError("Возраст должен быть от 0 до 120 лет.")
+        return age
+
+    def _validate_grade(self, grade: float) -> float:
+        if grade < 0 or grade > 5:
+            raise InvalidGradeError("Средний балл должен быть от 0 до 5.")
+        return grade
+
+    def _validate_email(self, email: str, exclude_id: int | None = None) -> str:
+        if not email or not email.strip():
+            raise InvalidEmailError("Email не может быть пустым.")
+
+        email_clean = email.strip().lower()
+
+        if "@" not in email_clean or "." not in email_clean:
+            raise InvalidEmailError("Введите корректный email (должен содержать @ и .)")
+
+        records = self.db.get_all_records("students")
+        for record in records:
+            if exclude_id is not None and record['student_id'] == exclude_id:
+                continue
+            if record['email'] == email_clean:
+                raise DuplicateEmailError(f"Студент с email '{email}' уже существует.")
+
+        return email_clean
+
     def _add_student(self) -> None:
-        print("\nДОБАВЛЕНИЕ СТУДЕНТА")
+        print("\nДОБАВЛЕНИЕ НОВОГО СТУДЕНТА")
         print("-" * 40)
-        
+
         first_name = self._read_string("Имя: ")
         if not first_name:
             return
+
         last_name = self._read_string("Фамилия: ")
         if not last_name:
             return
+
         age = self._read_int("Возраст: ")
         grade = self._read_float("Средний балл (0-5): ")
         email = self._read_string("Email: ")
         if not email:
             return
-        
+
         try:
-            record = self._validate_record(first_name, last_name, age, grade, email)
-            record_id = self.db.insert_record("students", record)
-            print(f"\nСтудент успешно добавлен! ID: {record_id}")
-        except (InvalidNameError, InvalidAgeError, InvalidGradeError, 
-                InvalidEmailError, DuplicateEmailError, MissingColumnError) as e:
-            print(f"\nОшибка: {e}")
-    
+            first_name_valid = self._validate_name(first_name, "Имя")
+            last_name_valid = self._validate_name(last_name, "Фамилия")
+            age_valid = self._validate_age(age)
+            grade_valid = self._validate_grade(grade)
+            email_valid = self._validate_email(email)
+
+            student_id = self._get_next_id()
+
+            record = {
+                "student_id": student_id,
+                "first_name": first_name_valid,
+                "last_name": last_name_valid,
+                "age": age_valid,
+                "grade": grade_valid,
+                "email": email_valid,
+            }
+
+            self.db.insert_record("students", record)
+
+            print(f"\nСтудент успешно добавлен!")
+            print(f"   ID: {student_id}")
+            print(f"   {first_name_valid} {last_name_valid}, {age_valid} лет")
+            print(f"   Средний балл: {grade_valid:.2f} ({self._grade_to_text(grade_valid)})")
+            print(f"   Email: {email_valid}")
+        except (InvalidNameError, InvalidAgeError, InvalidGradeError, InvalidEmailError, DuplicateEmailError) as exc:
+            print(f"\nОшибка: {exc}")
+
     def _show_all_students(self) -> None:
         print("\nВСЕ СТУДЕНТЫ")
         try:
             records = self.db.get_all_records("students")
             self._print_records(records)
-        except TableNotFoundError as e:
-            print(f"\nОшибка: {e}")
-    
-    def _find_students(self) -> None:
+        except TableNotFoundError:
+            print("\nТаблица студентов не найдена.")
+
+    def _find_students_by_filter(self) -> None:
         print("\nПОИСК СТУДЕНТОВ")
-        print("(оставьте поле пустым для пропуска)")
+        print("(оставьте поле пустым, чтобы пропустить фильтр)")
         print("-" * 40)
-        
-        filters = {}
-        
-        student_id = self._read_optional_int("ID: ")
-        if student_id is not None:
-            filters['id'] = student_id
-        
+
+        student_id = self._read_optional_int("ID студента: ")
         first_name = self._read_string("Имя: ", required=False)
-        if first_name:
-            filters['first_name'] = first_name.strip().capitalize()
-        
         last_name = self._read_string("Фамилия: ", required=False)
-        if last_name:
-            filters['last_name'] = last_name.strip().capitalize()
-        
         age = self._read_optional_int("Возраст: ")
-        if age is not None:
-            filters['age'] = age
-        
         grade = self._read_optional_float("Средний балл: ")
-        if grade is not None:
-            filters['grade'] = grade
-        
         email = self._read_string("Email: ", required=False)
-        if email:
-            filters['email'] = email.strip().lower()
-        
+
+        filters = {}
+        if student_id is not None:
+            filters["student_id"] = student_id
+        if first_name is not None:
+            filters["first_name"] = first_name.strip().capitalize()
+        if last_name is not None:
+            filters["last_name"] = last_name.strip().capitalize()
+        if age is not None:
+            filters["age"] = age
+        if grade is not None:
+            filters["grade"] = grade
+        if email is not None:
+            filters["email"] = email.strip().lower()
+
         try:
             records = self.db.select_records("students", **filters)
             self._print_records(records)
-        except (TableNotFoundError, UnknownColumnError) as e:
-            print(f"\nОшибка: {e}")
-    
+        except TableNotFoundError:
+            print("\nТаблица студентов не найдена.")
+        except UnknownColumnError as exc:
+            print(f"\nОшибка: {exc}")
+
     def _update_student(self) -> None:
-        print("\nОБНОВЛЕНИЕ СТУДЕНТА")
+        print("\nОБНОВЛЕНИЕ ИНФОРМАЦИИ О СТУДЕНТЕ")
         print("-" * 40)
-        
-        student_id = self._read_int("ID студента: ")
-        
+
+        student_id = self._read_int("Введите ID студента для обновления: ")
+
         try:
-            existing = self.db.select_records("students", id=student_id)
+            existing = self.db.select_records("students", student_id=student_id)
             if not existing:
                 print(f"\nСтудент с ID {student_id} не найден.")
                 return
-            
-            print(f"\nТекущая информация: {existing[0]}")
-            print("\n(оставьте поле пустым для пропуска)")
+
+            print(f"\nТекущая информация:")
+            print(f"   ID: {existing[0]['student_id']}")
+            print(f"   Имя: {existing[0]['first_name']}")
+            print(f"   Фамилия: {existing[0]['last_name']}")
+            print(f"   Возраст: {existing[0]['age']} лет")
+            print(f"   Средний балл: {existing[0]['grade']:.2f}")
+            print(f"   Email: {existing[0]['email']}")
+
+            print("\n(оставьте поле пустым, чтобы не менять)")
             print("-" * 40)
-            
-            updates = {}
-            
+
             first_name = self._read_string("Новое имя: ", required=False)
-            if first_name:
-                updates['first_name'] = first_name.strip().capitalize()
-            
             last_name = self._read_string("Новая фамилия: ", required=False)
-            if last_name:
-                updates['last_name'] = last_name.strip().capitalize()
-            
-            age_input = input("Новый возраст: ").strip()
-            if age_input:
-                updates['age'] = int(age_input)
-            
-            grade_input = input("Новый средний балл: ").strip()
-            if grade_input:
-                updates['grade'] = float(grade_input)
-            
+            age = self._read_optional_int("Новый возраст: ")
+            grade = self._read_optional_float("Новый средний балл: ")
             email = self._read_string("Новый email: ", required=False)
-            if email:
-                updates['email'] = email.strip().lower()
-            
-            if updates:
-                updated = self.db.update_record("students", student_id, **updates)
-                print(f"\nСтудент обновлён: {updated}")
+
+            updates = {}
+            if first_name is not None:
+                updates["first_name"] = self._validate_name(first_name, "Имя")
+            if last_name is not None:
+                updates["last_name"] = self._validate_name(last_name, "Фамилия")
+            if age is not None:
+                updates["age"] = self._validate_age(age)
+            if grade is not None:
+                updates["grade"] = self._validate_grade(grade)
+            if email is not None:
+                updates["email"] = self._validate_email(email, student_id)
+
+            if not updates:
+                print("\nНи одно поле не было изменено. Обновление отменено.")
+                return
+
+            updated = self.db.update_record("students", student_id, "student_id", **updates)
+
+            if updated:
+                print(f"\nИнформация о студенте успешно обновлена!")
+                print(f"   {updated['first_name']} {updated['last_name']}, {updated['age']} лет")
+                print(f"   Средний балл: {updated['grade']:.2f} ({self._grade_to_text(updated['grade'])})")
+                print(f"   Email: {updated['email']}")
             else:
-                print("\nНет изменений.")
-                
-        except (TableNotFoundError, RecordNotFoundError, InvalidNameError,
-                InvalidAgeError, InvalidGradeError, InvalidEmailError,
-                DuplicateEmailError, MissingColumnError, UnknownColumnError) as e:
-            print(f"\nОшибка: {e}")
-    
+                print(f"\nСтудент с ID {student_id} не найден.")
+        except TableNotFoundError:
+            print("\nТаблица студентов не найдена.")
+        except (InvalidNameError, InvalidAgeError, InvalidGradeError, InvalidEmailError, DuplicateEmailError) as exc:
+            print(f"\nОшибка: {exc}")
+
     def _delete_student(self) -> None:
         print("\nУДАЛЕНИЕ СТУДЕНТА")
         print("-" * 40)
-        
-        student_id = self._read_int("ID студента: ")
-        
+
+        student_id = self._read_int("Введите ID студента для удаления: ")
+
         try:
-            existing = self.db.select_records("students", id=student_id)
+            existing = self.db.select_records("students", student_id=student_id)
             if not existing:
                 print(f"\nСтудент с ID {student_id} не найден.")
                 return
-            
-            print(f"\nСтудент для удаления: {existing[0]}")
-            confirm = input("\nВы уверены? (да/нет): ").strip().lower()
-            
+
+            print(f"\nСтудент для удаления:")
+            print(f"   {existing[0]['first_name']} {existing[0]['last_name']}, {existing[0]['age']} лет")
+            print(f"   Средний балл: {existing[0]['grade']:.2f}")
+            print(f"   Email: {existing[0]['email']}")
+
+            confirm = input("\nВы уверены, что хотите удалить этого студента? (да/нет): ").strip().lower()
+
             if confirm in ("да", "yes", "y", "д"):
-                deleted = self.db.delete_record("students", student_id)
-                print(f"\nСтудент удалён: {deleted.get('first_name')} {deleted.get('last_name')}")
+                deleted = self.db.delete_record("students", student_id, "student_id")
+                if deleted:
+                    print(f"\nСтудент успешно удалён: {deleted['first_name']} {deleted['last_name']}")
+                else:
+                    print(f"\nСтудент с ID {student_id} не найден.")
             else:
                 print("\nУдаление отменено.")
-                
-        except (TableNotFoundError, RecordNotFoundError) as e:
-            print(f"\nОшибка: {e}")
-    
+        except TableNotFoundError:
+            print("\nТаблица студентов не найдена.")
+
     def _sort_students(self) -> None:
         print("\nСОРТИРОВКА СТУДЕНТОВ")
         print("-" * 40)
-        print("Поля для сортировки:")
+        print("Выберите поле для сортировки:")
         print("1. ID")
         print("2. Имя")
         print("3. Фамилия")
         print("4. Возраст")
         print("5. Средний балл")
         print("6. Email")
-        
+
+        field_choice = self._read_int("Ваш выбор (1-6): ")
+
         field_map = {
-            1: 'id', 2: 'first_name', 3: 'last_name',
-            4: 'age', 5: 'grade', 6: 'email'
+            1: 'student_id',
+            2: 'first_name',
+            3: 'last_name',
+            4: 'age',
+            5: 'grade',
+            6: 'email',
         }
-        
-        field_choice = self._read_int("Выберите поле (1-6): ")
+
         if field_choice not in field_map:
-            print("\nНеверный выбор.")
+            print("\nНеверный выбор поля.")
             return
-        
+
         field = field_map[field_choice]
-        
-        print("\n1. По возрастанию")
+
+        print("\nВыберите порядок сортировки:")
+        print("1. По возрастанию")
         print("2. По убыванию")
-        order_choice = self._read_int("Выберите порядок (1-2): ")
+
+        order_choice = self._read_int("Ваш выбор (1-2): ")
+
+        if order_choice not in (1, 2):
+            print("\nНеверный выбор порядка.")
+            return
+
         reverse = (order_choice == 2)
-        
+
+        print("\nХотите применить фильтр перед сортировкой?")
+        filter_choice = input("(да/нет): ").strip().lower()
+
         try:
-            records = self.db.sort_records("students", field, reverse)
-            self._print_records(records)
-        except (TableNotFoundError, UnknownColumnError) as e:
-            print(f"\nОшибка: {e}")
-    
-    def _manage_indexes(self) -> None:
-        print("\nУПРАВЛЕНИЕ ИНДЕКСАМИ")
-        print("-" * 40)
-        
-        try:
-            indexed = self.db.get_indexed_fields("students")
-            print(f"\nТекущие индексы: {indexed if indexed else 'нет'}")
-            
-            print("\n1. Добавить индекс")
-            print("2. Удалить индекс")
-            print("0. Назад")
-            
-            choice = self._read_int("Выберите действие (0-2): ")
-            
-            if choice == 1:
-                print(f"\nДоступные поля: {self.COLUMNS}")
-                field = self._read_string("Имя поля для индексации: ")
-                if field and field in self.COLUMNS:
-                    self.db.add_index("students", field)
-                    print(f"Индекс для поля '{field}' добавлен.")
-                else:
-                    print(f"Поле '{field}' не найдено.")
-            
-            elif choice == 2:
-                field = self._read_string("Имя поля для удаления индекса: ")
-                if field:
-                    self.db.remove_index("students", field)
-                    print(f"Индекс для поля '{field}' удалён.")
-                    
-        except (TableNotFoundError, UnknownColumnError) as e:
-            print(f"\nОшибка: {e}")
-    
+            records = self.db.get_all_records("students")
+
+            filter_params = None
+            if filter_choice in ("да", "yes", "y", "д"):
+                print("\nВведите фильтры (оставьте пустым для пропуска):")
+                student_id = self._read_optional_int("ID: ")
+                first_name = self._read_string("Имя: ", required=False)
+                last_name = self._read_string("Фамилия: ", required=False)
+                age = self._read_optional_int("Возраст: ")
+                grade = self._read_optional_float("Средний балл: ")
+                email = self._read_string("Email: ", required=False)
+
+                records = self.db.get_all_records("students")
+
+                if student_id is not None:
+                    records = [r for r in records if r['student_id'] == student_id]
+                if first_name is not None:
+                    records = [r for r in records if r['first_name'].lower() == first_name.lower()]
+                if last_name is not None:
+                    records = [r for r in records if r['last_name'].lower() == last_name.lower()]
+                if age is not None:
+                    records = [r for r in records if r['age'] == age]
+                if grade is not None:
+                    records = [r for r in records if r['grade'] == grade]
+                if email is not None:
+                    records = [r for r in records if r['email'].lower() == email.lower()]
+
+            def get_key(record):
+                value = record[field]
+                if isinstance(value, str):
+                    return value.lower()
+                return value
+
+            sorted_records = sorted(records, key=get_key, reverse=reverse)
+
+            print(f"\nОтсортированные студенты (по полю '{field}', {'по убыванию' if reverse else 'по возрастанию'}):")
+            self._print_records(sorted_records)
+        except TableNotFoundError:
+            print("\nТаблица студентов не найдена.")
+        except ValueError as exc:
+            print(f"\nОшибка при сортировке: {exc}")
+
     def run(self) -> None:
-        print("\n" + "=" * 60)
-        print("ДОБРО ПОЖАЛОВАТЬ В СИСТЕМУ УПРАВЛЕНИЯ СТУДЕНТАМИ")
-        print("=" * 60)
-        
         while True:
-            self._print_menu()
-            action = input("\nВыберите действие (0-7): ").strip()
-            
-            if action == "1":
-                self._add_student()
-            elif action == "2":
-                self._show_all_students()
-            elif action == "3":
-                self._find_students()
-            elif action == "4":
-                self._update_student()
-            elif action == "5":
-                self._delete_student()
-            elif action == "6":
-                self._sort_students()
-            elif action == "7":
-                self._manage_indexes()
-            elif action == "0":
-                print("\nДо свидания!")
+            try:
+                self._print_menu()
+                action = input("\nВыберите действие (0-6): ").strip()
+
+                if action == "1":
+                    self._add_student()
+                elif action == "2":
+                    self._show_all_students()
+                elif action == "3":
+                    self._find_students_by_filter()
+                elif action == "4":
+                    self._update_student()
+                elif action == "5":
+                    self._delete_student()
+                elif action == "6":
+                    self._sort_students()
+                elif action == "0":
+                    print("\nДо свидания! Спасибо за использование системы.")
+                    break
+                else:
+                    print("\nНеизвестная команда. Пожалуйста, выберите действие от 0 до 6.")
+            except KeyboardInterrupt:
+                print("\n\nПрограмма прервана пользователем. До свидания!")
                 break
-            else:
-                print("\nНеизвестная команда.")
-            
+            except Exception as exc:
+                print(f"\nНепредвиденная ошибка: {exc}")
+                import traceback
+                traceback.print_exc()
+                print("\nПопробуйте продолжить работу...")
+
             input("\nНажмите Enter для продолжения...")
 
 
 def run() -> None:
     app = ConsoleInterface()
     app.run()
+
+
+def main() -> None:
+    run()

@@ -1,8 +1,4 @@
-from .tui import run
-
-
-def main() -> None:
-    run()
+from .tui import main
 
 
 if __name__ == "__main__":
