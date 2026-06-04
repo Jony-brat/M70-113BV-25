@@ -1,0 +1,11 @@
+# Python compiled files
+__pycache__/
+*.pyc
+
+# IDE files
+.vscode/
+.idea/
+
+
+# Testing
+.pytest_cache/
